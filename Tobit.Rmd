@@ -1,0 +1,65 @@
+---
+title: "Tobit model"
+author: "Tomoya Ozawa"
+date: "2022-11-17"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 
+
+[Reference](https://stats.oarc.ucla.edu/r/dae/tobit-models/)
+
+```{r, message=FALSE}
+library(tidyverse)
+library(AER)
+library(VGAM)
+library(modelsummary)
+```
+
+
+
+```{r}
+df <- read.csv("https://stats.idre.ucla.edu/stat/data/tobit.csv")
+head(df)
+```
+
+
+```{r}
+df %>% 
+  ggplot(mapping = aes(x = apt)) +
+  geom_histogram(bins = 30)
+```
+
+```{r}
+results <- list()
+```
+
+```{r}
+results[['OLS']] <- lm(apt ~ read + math + prog, data = df)
+```
+
+
+- `vglm()` from `VGAM` package
+
+```{r}
+results[['vglm(VGAM)']] <- VGAM::vglm(apt ~ read + math + prog, tobit(Upper = 800), data = df)
+```
+
+- `tobit()` from `AER` package
+
+```{r}
+results[['tobit(AER)']] <- AER::tobit(apt ~ read + math + prog, right = 800, data = df)
+```
+
+
+```{r}
+msummary(results, 'markdown', stars = TRUE)
+```
+
+
+
+

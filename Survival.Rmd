@@ -1,0 +1,52 @@
+---
+title: "Survival analysis"
+author: "Tomoya Ozawa"
+date: "2023-07-07"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 
+
+[Reference](https://note.com/maxwell/n/nc78c55afe944?magazine_key=mc84c90fb0e35)
+
+```{r, message=FALSE}
+library(tidyverse)
+library(MASS)
+library(survival)
+```
+
+
+
+```{r}
+data(gehan)
+gehan
+```
+
+```{r}
+cut.points <- gehan %>% 
+  filter(cens == 1) %>% 
+  arrange(time) %>% 
+  pull(time) %>% 
+  unique()
+
+cut.points
+```
+
+
+
+```{r}
+gehan2 <- survival::survSplit(data = gehan, 
+                              cut = cut.points,
+                              start = "start",
+                              end = "time",
+                              event = "cens")
+colnames(gehan2)[4] <- "stop"
+gehan2
+```
+
+
+
