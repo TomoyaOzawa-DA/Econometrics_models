@@ -3,13 +3,19 @@ title: "Survival analysis"
 author: "Tomoya Ozawa"
 date: "2023-07-07"
 output: github_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## 
+# Non parametric model
+
+- we do not assume any distribution assumption and do not use covariates.
+
+## Set up
 
 [Reference](https://note.com/maxwell/n/nc78c55afe944?magazine_key=mc84c90fb0e35)
 
@@ -17,6 +23,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(MASS)
 library(survival)
+library(survminer)
 ```
 
 
@@ -25,6 +32,11 @@ library(survival)
 data(gehan)
 gehan
 ```
+
+- this data set is identified with pair and treat
+- columns:
+  - `time`: duration individual exists
+  - `cens`: takes 1 if the observation is censored
 
 ```{r}
 cut.points <- gehan %>% 
@@ -47,6 +59,150 @@ gehan2 <- survival::survSplit(data = gehan,
 colnames(gehan2)[4] <- "stop"
 gehan2
 ```
+
+
+## Kaplan-Meier Curve
+
+- compute the survival function, $S(t) = 1-F(t)$
+
+```{r}
+# create object for survival analysis
+surv.obj <- Surv(time = gehan$time, event = gehan$cens)
+
+# estimate Kaplan-Meier curve for each value in specified variable
+# in this case, plot the curve for treat or not
+ge.sf <- survfit(surv.obj ~ treat, data = gehan)
+
+# dataframe showing the estimation result
+ge.sf.df <- survminer::surv_summary(ge.sf, data = gehan)
+ge.sf.df
+```
+
+
+- columns:
+  - `n.risk`: the number of existing people
+  - `n.event`: the number of death
+  - `n.censor`: the number of people who were subjected to the censoring
+  
+$$
+S(t_{f-1}) = \prod_{i = 1}^{f-1}Pr(T>t_i | T \geq t_i) \ , \quad
+S(t_f) = S(t_{f-1})Pr(T>t_f | T \geq t_f)
+$$
+
+For treated group,
+
+$$
+S(t_1) = \frac{21-3}{21} = 0.857\ldots \quad S(t_2) = S(t_1)\times  \frac{17-1}{17} = 0.806\ldots
+$$
+
+Here we assume independence of censoring, which means we regard censored observations have the same pattern with the other existing observations.
+
+```{r}
+survminer::ggsurvplot(
+   fit = ge.sf,
+   data = gehan,
+   conf.int = T,
+   pval = T,
+   risk.table = T,
+   cumevents = T,
+   cumcensor = T,
+   ggtheme = ggplot2::theme_light(),
+   tables.height = 0.15
+)
+```
+
+
+## Log-rank test
+
+$$
+H_0: \text{ There is no difference between two KM curves}
+$$
+
+```{r}
+survdiff(surv.obj ~ treat, data = gehan)
+```
+
+Since p-value is less than 0.01, we reject the null hypothesis with the 1% level of significance.
+
+
+
+# Semi-nonparametric model
+
+- We do not assume any distribution assumption, but we employ covariates.
+
+## Cox PH model
+
+- Cox PH model is a way to model a hazard function.
+- PH stands for Proportional Hazard
+- Hazard function indicates the probability of occurring an event given the individual has survived at time $t$.
+- In Cox PH model, the hazard function depends on covariates, $X$, as well as time, $t$.
+
+$$
+h(t, X) = h_0(t) \ \text{exp}\left[\sum_{i = 1}^{p}\beta_iX_i\right]
+$$
+
+
+- One of the important feature of this model is that the proportion of the values of the hazard function in two different covariates is constant and independent of time. **Proportional hazard Assumption**
+
+```{r}
+# add logWBC as a covariate
+gehan <- read_csv("https://raw.githubusercontent.com/Greenwind1/survival-analysis/master/input/gehan-wbc.csv",
+                  col_types = cols(treat = col_character())) %>% 
+  mutate(treat = ifelse(treat == "6-MP", "6MP", "control"))
+```
+
+```{r}
+surv.obj <- Surv(time = gehan$time, event = gehan$cens)
+m1 <- coxph(surv.obj ~ treat + logWBC, 
+           data = gehan,
+           method = "efron")
+```
+
+- plot of adjusted survival curve usiusinggn the mean value of covariate
+
+```{r}
+survminer::ggsurvplot(
+ fit = survfit(m1, conf.int = 0.95),
+ data = gehan,
+ conf.int = T,
+ ggtheme = ggplot2::theme_light(),
+)
+```
+
+- Plot showing the difference caused from treatment
+
+```{r}
+new.data <- data.frame(
+ treat = c("control", "6MP"),
+ logWBC = rep(mean(gehan$logWBC), 2)
+)
+
+survminer::ggsurvplot(
+ fit = survfit(m1,newdata = new.data, conf.int = 0.95),
+ data = gehan,
+ conf.int = T,
+ legend.labs = c("control", "6MP"),
+ ggtheme = ggplot2::theme_light(),
+)
+```
+
+- we can see the survival curve for each value of covariate by specifying their values as new data.
+
+
+- To validate the Proportional hazard assumption, we would do
+
+1. 
+
+
+
+
+
+
+
+
+
+
+
 
 
 
